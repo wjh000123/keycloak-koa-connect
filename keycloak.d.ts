@@ -9,7 +9,7 @@ import * as koa from 'koa'
  * containing our typings, and a static instance exposing the constructor
  */
 declare const KeycloakConnect: KeycloakConnectStatic
-export = KeycloakConnect
+export default KeycloakConnect
 
 interface KeycloakConnectStatic {
   new (options: KeycloakConnect.KeycloakOptions, config: KeycloakConnect.KeycloakConfig): KeycloakConnect.Keycloak
