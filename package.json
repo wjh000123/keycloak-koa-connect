@@ -1,6 +1,6 @@
 {
   "name": "@anthinkingcoder/keycloak-koa-connect",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Keycloak Connect Middleware base on koa",
   "homepage": "http://keycloak.org",
   "main": "keycloak.js",
