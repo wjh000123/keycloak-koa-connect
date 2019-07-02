@@ -110,7 +110,6 @@ declare namespace KeycloakConnect {
      * Perform live validation of an `access_token` against the Keycloak server.
      *
      * @param {Token|String} token The token to validate.
-     * @param {Function} callback Callback function if not using promises.
      *
      * @return {boolean} `false` if the token is invalid, or the same token if valid.
      */

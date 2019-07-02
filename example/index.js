@@ -55,7 +55,7 @@ render(app, {
 // installed from the Keycloak web console.
 
 var keycloak = new Keycloak({
-  store
+  store: true
 },{
   clientId: 'photoz-html5-client',
   serverUrl: 'http://auth.sunmaoyun.io/auth',

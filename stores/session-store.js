@@ -22,9 +22,6 @@ SessionStore.TOKEN_KEY = 'keycloak-token';
 
 SessionStore.prototype.get = (ctx) => ctx.session[SessionStore.TOKEN_KEY];
 
-SessionStore.prototype.clear = function (ctx) {
-  delete ctx.session[SessionStore.TOKEN_KEY];
-};
 
 let store = (grant) => {
   return (ctx) => {
@@ -35,6 +32,9 @@ let store = (grant) => {
 let unstore = (ctx) => {
   delete ctx.session[SessionStore.TOKEN_KEY];
 };
+
+SessionStore.prototype.clear = unstore
+
 
 SessionStore.prototype.wrap = (grant) => {
   if (grant) {
