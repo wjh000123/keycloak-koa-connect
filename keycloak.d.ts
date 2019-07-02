@@ -1,10 +1,10 @@
-import * as express from 'express'
+import * as koa from 'koa'
 
 /**
  * The JavaScript module is exported as a single function, but for TypeScript we
  * need to export the function and a set of interfaces so developers can assign
  * types such as Grant, Token, etc. to variables in their own code.
- * 
+ *
  * To achieve this we export "KeycloakConnect" that references a namespace
  * containing our typings, and a static instance exposing the constructor
  */
@@ -72,8 +72,9 @@ declare namespace KeycloakConnect {
      * during its postbacks to `/k_logout` on the server.
      *
      * @param {String} code The code from a successful login redirected from Keycloak.
-     * @param {String} sessionId Optional opaque session-id.
+     * @param sessionid
      * @param {String} sessionHost Optional session host for targetted Keycloak console post-backs.
+     * @param callback
      */
     obtainFromCode(code: string, sessionid?: string, sessionHost?: string, callback?: (err: Error, grant: Grant) => void): Promise<Grant>
 
@@ -85,6 +86,7 @@ declare namespace KeycloakConnect {
      * This method returns or promise or may optionally take a callback function.
      *
      * @param {Function} callback Optional callback, if not using promises.
+     * @param scopeParam
      */
     obtainFromClientCredentials (callback?: (err: Error, grant: Grant) => void, scopeParam?: string): Promise<Grant>
 
@@ -128,7 +130,7 @@ declare namespace KeycloakConnect {
      * if available, and validates each for expiration and
      * against the known public-key of the server.
      *
-     * @param {String|GrantProperties} rawData The raw JSON string received from the Keycloak server or from a client.
+     * @param {String|GrantProperties} data The raw JSON string received from the Keycloak server or from a client.
      * @return {Promise} A promise reoslving a grant.
      */
     createGrant(data: string|GrantProperties): Promise<Grant>
@@ -154,9 +156,9 @@ declare namespace KeycloakConnect {
      * This method accepts a token, and returns a promise
      *
      * If the token is valid the promise will be resolved with the token
-     * 
+     *
      * If the token is undefined or fails validation an applicable error is returned
-     * 
+     *
      * @return {Promise} That resolve a token
      */
     validateToken(token: Token): Promise<Token>
@@ -192,7 +194,7 @@ declare namespace KeycloakConnect {
     isExpired(): boolean
   }
 
-  type GaurdFn = (accessToken: string, req: express.Request, res: express.Response) => boolean
+  type GaurdFn = (accessToken: string, ctx: koa.context) => boolean
 
 
   interface Keycloak {
@@ -208,9 +210,10 @@ declare namespace KeycloakConnect {
      *
      * Example:
      *
-     *     var app = express();
+     *     var app = koa();
      *     var keycloak = new Keycloak();
-     *     app.use( keycloak.middleware() );
+     *     var middlewares = keycloak.middleware()
+     *     middlewares.forEach(middleware => app.use(middleware));
      *
      * Options:
      *
@@ -219,7 +222,7 @@ declare namespace KeycloakConnect {
      *
      * @param {Object} options Optional options for specifying details.
      */
-    middleware(options?: { admin?: string, logout?: string }): express.RequestHandler[]
+    middleware(options?: { admin?: string, logout?: string }): koa.RequestHandler[]
 
     /**
      * Apply protection middleware to an application or specific URL.
@@ -257,7 +260,7 @@ declare namespace KeycloakConnect {
      * Example
      *
      *     // Users must have the `special-people` role within this application
-     *     app.get( '/special/:page', keycloak.protect( 'special-people' ), mySpecialHandler );
+     *     router.get( '/special/:page', keycloak.protect( 'special-people' ), mySpecialHandler );
      *
      * If the `spec` is a function, it may take up to two parameters in order to
      * assist it in making an authorization decision: the access token, and the
@@ -272,15 +275,15 @@ declare namespace KeycloakConnect {
      *       return token.hasRole( 'realm:nicepants') || token.hasRole( 'mr-fancypants');
      *     }
      *
-     *     app.get( '/fancy/:page', keycloak.protect( pants ), myPantsHandler );
+     *     router.get( '/fancy/:page', keycloak.protect( pants ), myPantsHandler );
      *
      * With no spec, simple authentication is all that is required:
      *
-     *     app.get( '/complain', keycloak.protect(), complaintHandler );
+     *     router.get( '/complain', keycloak.protect(), complaintHandler );
      *
      * @param {String} spec The protection spec (optional)
      */
-    protect(spec: GaurdFn|string): express.RequestHandler
+    protect(spec: GaurdFn|string): koa.RequestHandler
 
     /**
      * Callback made upon successful authentication of a user.
@@ -299,7 +302,7 @@ declare namespace KeycloakConnect {
      *
      * @param {Object} request The HTTP request.
      */
-    authenticated(req: express.Request): void
+    authenticated(req: koa.Request): void
 
     /**
      * Callback made upon successful de-authentication of a user.
@@ -310,7 +313,7 @@ declare namespace KeycloakConnect {
      *
      * @param {Object} request The HTTP request.
      */
-    deauthenticated(req: express.Request): void
+    deauthenticated(req: koa.Request): void
 
     /**
      * Replaceable function to handle access-denied responses.
@@ -322,19 +325,18 @@ declare namespace KeycloakConnect {
      * By default, a simple string of "Access denied" along with
      * an HTTP status code for 403 is returned.  Chances are an
      * application would prefer to render a fancy template.
-     * @param {Object} request The HTTP request.
-     * @param {Object} response The HTTP response.
+     * @param {Object} ctx The app context.
      */
-    accessDenied(req: express.Request, res: express.Response): void
+    accessDenied(ctx:koa.context): void
 
 
-    getGrant(req: express.Request, res: express.Response): Promise<Grant>
+    getGrant(ctx:koa.context): Promise<Grant>
 
-    storeGrant(grant: Grant, req: express.Request, res: express.Response): Grant
+    storeGrant(grant: Grant, ctx: koa.context): Grant
 
     unstoreGrant(sessionId: string): void
 
-    getGrantFromCode(code: string, req: express.Request, res: express.Response): Promise<Grant>
+    getGrantFromCode(code: string, ctx: koa.context): Promise<Grant>
 
     loginUrl(uuid: string, redirectUrl: string): string
 
@@ -345,7 +347,7 @@ declare namespace KeycloakConnect {
     // Uses deprecated method
     // getAccount
 
-    redirectToLogin(req: express.Request): boolean
+    redirectToLogin(req: koa.Request): boolean
   }
 
 }
