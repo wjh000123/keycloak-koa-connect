@@ -1,4 +1,4 @@
-# Basic NodeJS Example
+# Basic Koa Example
 
 
 ## Start and configure Keycloak
@@ -15,7 +15,7 @@ docker run -p 8080:8080 -e KEYCLOAK_USER=admin -e KEYCLOAK_PASSWORD=admin jboss/
 /<Path-To-Keycloak>/bin/standalone.sh
 ```
 
-Open the Keycloak admin console, click on Add Realm, click on import 'Select file', 
+Open the Keycloak admin console, click on Add Realm, click on import 'Select file',
 select nodejs-example-realm.json and click Create.
 
 Link the HEAD code of keycloak-connect by running:
@@ -31,4 +31,4 @@ npm install
 npm start
 ```
 
-Open the browser at http://localhost:3000/ and login with username: 'user', and password: 'password'.
+Open the browser at http://localhost:8081/ and login with username: 'user', and password: 'password'.

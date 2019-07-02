@@ -15,40 +15,38 @@
  */
 
 var Keycloak = require('keycloak-connect');
-var hogan = require('hogan-express');
-var express = require('express');
-var session = require('express-session');
+var koa = require('koa');
+const render = require('koa-ejs');
+var session = require('koa-session');
+var Router = require('koa-router');
+const path = require('path');
 
-var app = express();
+var app = new koa();
+var router = new Router();
 
-var server = app.listen(3000, function () {
-  var host = server.address().address;
-  var port = server.address().port;
-  console.log('Example app listening at http://%s:%s', host, port);
-});
-
-// Register '.mustache' extension with The Mustache Express
-app.set('view engine', 'html');
-app.set('views', require('path').join(__dirname, '/view'));
-app.engine('html', hogan);
-
-// A normal un-protected public URL.
-
-app.get('/', function (req, res) {
-  res.render('index');
-});
 
 // Create a session-store to be used by both the express-session
 // middleware and the keycloak middleware.
 
-var memoryStore = new session.MemoryStore();
-
+var MemoryStore = require('./util/memory-store')
+var store = new MemoryStore()
 app.use(session({
-  secret: 'mySecret',
-  resave: false,
-  saveUninitialized: true,
-  store: memoryStore
-}));
+  key: 'koa:sess',
+  maxAge: 86400000,
+  renew: false,
+  store: store,
+  signed:false
+}, app));
+
+
+// ejs template engine
+render(app, {
+  root: path.join(__dirname, 'view'),
+  layout: 'index',
+  viewExt: 'html',
+  cache: false,
+  debug: true
+});
 
 // Provide the session store to the Keycloak so that sessions
 // can be invalidated from the Keycloak console callback.
@@ -57,7 +55,12 @@ app.use(session({
 // installed from the Keycloak web console.
 
 var keycloak = new Keycloak({
-  store: memoryStore
+  store
+},{
+  clientId: 'photoz-html5-client',
+  serverUrl: 'http://auth.sunmaoyun.io/auth',
+  realm: 'photoz',
+  bearerOnly: false
 });
 
 // Install the Keycloak middleware.
@@ -69,24 +72,46 @@ var keycloak = new Keycloak({
 // root URL.  Various permutations, such as /k_logout will ultimately
 // be appended to the admin URL.
 
-app.use(keycloak.middleware({
+var middlewares = keycloak.middleware({
   logout: '/logout',
   admin: '/',
   protected: '/protected/resource'
-}));
+});
+middlewares.forEach(function (middleware) {
+  app.use(middleware);
+});
 
-app.get('/login', keycloak.protect(), function (req, res) {
-  res.render('index', {
-    result: JSON.stringify(JSON.parse(req.session['keycloak-token']), null, 4),
-    event: '1. Authentication\n2. Login'
+
+router.get('/', async (ctx) => {
+  await ctx.render('index', {
+    data: {
+      result: '',
+      event: ''
+    }
   });
 });
 
-app.get('/protected/resource', keycloak.enforcer(['resource:view', 'resource:write'], {
+router.get('/login', keycloak.protect(), async function (ctx) {
+  await ctx.render('index', {
+    data: {
+      result: JSON.stringify(JSON.parse(ctx.session['keycloak-token']), null, 4),
+      event: '1. Authentication\n2. Login'
+    }
+  });
+});
+
+router.get('/protected/resource', keycloak.enforcer(['resource:view', 'resource:write'], {
   resource_server_id: 'nodejs-apiserver'
-}), function (req, res) {
-  res.render('index', {
-    result: JSON.stringify(JSON.parse(req.session['keycloak-token']), null, 4),
-    event: '1. Access granted to Default Resource\n'
+}), async function (ctx) {
+  await ctx.render('index', {
+    data: {
+      result: JSON.stringify(JSON.parse(ctx.session['keycloak-token']), null, 4),
+      event: '1. Access granted to Default Resource\n'
+    }
   });
 });
+
+app.use(router.routes()).use(router.allowedMethods());
+
+app.listen(8081);
+

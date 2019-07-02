@@ -43,10 +43,12 @@
             float: left;
             width: 250px;
         }
+
         .content {
             margin-left: 270px;
 
         }
+
         pre {
             word-wrap: break-word;
             white-space: pre-wrap;
@@ -58,7 +60,7 @@
 </head>
 <body>
 
-<h1 style="width: 100%; text-align: center;">NodeJS Keycloak Example</h1>
+<h1 style="width: 100%; text-align: center;">Koa Keycloak Example</h1>
 <hr/>
 
 <div class="nav">
@@ -71,12 +73,12 @@
 <div class="content">
     <h2>Result</h2>
     <pre id="output">
-{{result}}
+<%= data.result %>
     </pre>
 
     <h2>Events</h2>
     <pre id="events">
-{{event}}
+<%= data.event %>
     </pre>
 </div>
 
