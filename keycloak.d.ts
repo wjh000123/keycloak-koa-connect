@@ -29,7 +29,8 @@ declare namespace KeycloakConnect {
   interface KeycloakOptions {
     scope?: string
     store?: boolean
-    cookies?: boolean
+    cookies?: boolean,
+    idpHint?: string
   }
 
   interface MiddlewareOptions {
@@ -304,9 +305,9 @@ declare namespace KeycloakConnect {
      *
      *     request.kauth.grant.id_token.sub => bf2056df-3803-4e49-b3ba-ff2b07d86995
      *
-     * @param {Object} request The HTTP request.
+     * @param {Object} ctx The app context.
      */
-    authenticated(req: koa.Request): void
+    authenticated(ctx: koa.context): void
 
     /**
      * Callback made upon successful de-authentication of a user.
@@ -315,9 +316,9 @@ declare namespace KeycloakConnect {
      * in the case it needs to remove information from the user's session
      * or otherwise perform additional logic once a user is logged out.
      *
-     * @param {Object} request The HTTP request.
+     * @param {Object} ctx The app context.
      */
-    deauthenticated(req: koa.Request): void
+    deauthenticated(ctx: koa.context): void
 
     /**
      * Replaceable function to handle access-denied responses.
