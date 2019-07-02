@@ -15,8 +15,7 @@
  */
 'use strict';
 
-function SessionStore(store) {
-  this.store = store;
+function SessionStore() {
 }
 
 SessionStore.TOKEN_KEY = 'keycloak-token';
@@ -24,7 +23,7 @@ SessionStore.TOKEN_KEY = 'keycloak-token';
 SessionStore.prototype.get = (ctx) => ctx.session[SessionStore.TOKEN_KEY];
 
 SessionStore.prototype.clear = function (ctx) {
-  delete ctx.session[SessionStore.TOKEN_KEY]
+  delete ctx.session[SessionStore.TOKEN_KEY];
 };
 
 let store = (grant) => {

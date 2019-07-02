@@ -76,7 +76,7 @@ function Keycloak(config, keycloakConfig) {
     throw new Error('Either `store` or `cookies` may be set, but not both');
   }
   if (config && config.store) {
-    this.stores.push(new SessionStore(config.store));
+    this.stores.push(new SessionStore());
   } else if (config && config.cookies) {
     this.stores.push(CookieStore);
   }
