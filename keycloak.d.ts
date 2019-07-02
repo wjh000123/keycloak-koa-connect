@@ -28,8 +28,13 @@ declare namespace KeycloakConnect {
 
   interface KeycloakOptions {
     scope?: string
-    store?: any
+    store?: boolean
     cookies?: boolean
+  }
+
+  interface MiddlewareOptions {
+    admin?: string
+    logout?: string
   }
 
   interface GrantProperties {
@@ -221,7 +226,7 @@ declare namespace KeycloakConnect {
      *
      * @param {Object} options Optional options for specifying details.
      */
-    middleware(options?: { admin?: string, logout?: string }): koa.RequestHandler[]
+    middleware(options?: MiddlewareOptions): koa.RequestHandler[]
 
     /**
      * Apply protection middleware to an application or specific URL.
