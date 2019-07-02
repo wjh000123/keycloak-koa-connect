@@ -57,13 +57,13 @@ var CheckSso = require('./middleware/check-sso');
  * @return     {Keycloak}  A constructed Keycloak object.
  *
  */
-function Keycloak (config, keycloakConfig) {
+function Keycloak(config, keycloakConfig) {
   // If keycloakConfig is null, Config() will search for `keycloak.json`.
   this.config = new Config(keycloakConfig);
 
   this.grantManager = new GrantManager(this.config);
 
-  this.stores = [ BearerStore ];
+  this.stores = [BearerStore];
 
   if (!config) {
     throw new Error('Adapter configuration must be provided.');
@@ -75,13 +75,11 @@ function Keycloak (config, keycloakConfig) {
   if (config && config.store && config.cookies) {
     throw new Error('Either `store` or `cookies` may be set, but not both');
   }
-
   if (config && config.store) {
     this.stores.push(new SessionStore(config.store));
   } else if (config && config.cookies) {
     this.stores.push(CookieStore);
   }
-
   this.config.idpHint = config.idpHint;
 }
 
@@ -108,7 +106,7 @@ function Keycloak (config, keycloakConfig) {
  */
 Keycloak.prototype.middleware = function (options) {
   if (!options) {
-    options = { logout: '', admin: '' };
+    options = {logout: '', admin: ''};
   }
 
   options.logout = options.logout || '/logout';
@@ -260,16 +258,16 @@ Keycloak.prototype.checkSso = function () {
  * for linking authentication information from Keycloak to
  * application-maintained user information.
  *
- * The `request.kauth.grant` object contains the relevant tokens
+ * The `ctx.request.kauth.grant` object contains the relevant tokens
  * which may be inspected.
  *
  * For instance, to obtain the unique subject ID:
  *
- *     request.kauth.grant.id_token.sub => bf2056df-3803-4e49-b3ba-ff2b07d86995
+ *     ctx.request.kauth.grant.id_token.sub => bf2056df-3803-4e49-b3ba-ff2b07d86995
  *
- * @param {Object} request The HTTP request.
+ * @param {Object} ctx The Koa context.
  */
-Keycloak.prototype.authenticated = function (request) {
+Keycloak.prototype.authenticated = function (ctx) {
   // no-op
 };
 
@@ -280,9 +278,9 @@ Keycloak.prototype.authenticated = function (request) {
  * in the case it needs to remove information from the user's session
  * or otherwise perform additional logic once a user is logged out.
  *
- * @param {Object} request The HTTP request.
+ * @param {Object} ctx The context.
  */
-Keycloak.prototype.deauthenticated = function (request) {
+Keycloak.prototype.deauthenticated = function (ctx) {
   // no-op
 };
 
@@ -297,17 +295,16 @@ Keycloak.prototype.deauthenticated = function (request) {
  * an HTTP status code for 403 is returned.  Chances are an
  * application would prefer to render a fancy template.
  */
-Keycloak.prototype.accessDenied = function (request, response) {
-  response.status(403);
-  response.end('Access denied');
+Keycloak.prototype.accessDenied = function (ctx) {
+  ctx.response.status = 403;
+  ctx.response.body = 'Access denied';
 };
 
 /*! ignore */
-Keycloak.prototype.getGrant = function (request, response) {
+Keycloak.prototype.getGrant = function (ctx) {
   var rawData;
-
   for (var i = 0; i < this.stores.length; ++i) {
-    rawData = this.stores[i].get(request);
+    rawData = this.stores[i].get(ctx);
     if (rawData) {
       // store = this.stores[i];
       break;
@@ -318,80 +315,82 @@ Keycloak.prototype.getGrant = function (request, response) {
   if (typeof (grantData) === 'string') {
     grantData = JSON.parse(grantData);
   }
-
   if (grantData && !grantData.error) {
     var self = this;
     return this.grantManager.createGrant(JSON.stringify(grantData))
-      .then(grant => {
-        self.storeGrant(grant, request, response);
-        return grant;
-      })
-      .catch(() => { return Promise.reject(new Error('Could not store grant code error')); });
+        .then(grant => {
+          self.storeGrant(grant, ctx);
+          return grant;
+        })
+        .catch(() => {
+          return Promise.reject(new Error('Could not store grant code error'));
+        });
   }
-
   return Promise.reject(new Error('Could not obtain grant code error'));
 };
 
-Keycloak.prototype.storeGrant = function (grant, request, response) {
-  if (this.stores.length < 2 || BearerStore.get(request)) {
+Keycloak.prototype.storeGrant = function (grant, ctx) {
+  if (this.stores.length < 2 || BearerStore.get(ctx)) {
     // cannot store bearer-only, and should not store if grant is from the
     // authorization header
     return;
   }
   if (!grant) {
-    this.accessDenied(request, response);
+    this.accessDenied(ctx);
     return;
   }
 
   this.stores[1].wrap(grant);
-  grant.store(request, response);
+  grant.store(ctx);
   return grant;
 };
 
-Keycloak.prototype.unstoreGrant = function (sessionId) {
+Keycloak.prototype.unstoreGrant = function (ctx) {
   if (this.stores.length < 2) {
     // cannot unstore, bearer-only, this is weird
     return;
   }
 
-  this.stores[1].clear(sessionId);
+  this.stores[1].clear(ctx);
 };
 
-Keycloak.prototype.getGrantFromCode = function (code, request, response) {
+Keycloak.prototype.getGrantFromCode = function (code, ctx) {
+  const {request, response} = ctx;
   if (this.stores.length < 2) {
     // bearer-only, cannot do this;
     throw new Error('Cannot exchange code for grant in bearer-only mode');
   }
-
-  var sessionId = request.session.id;
-
+  if (ctx.sessionOptions.key) {
+    var sessionId = ctx.cookies.get(ctx.sessionOptions.key, { encrypt: true });
+  }
   var self = this;
-  return this.grantManager.obtainFromCode(request, code, sessionId)
-    .then(function (grant) {
-      self.storeGrant(grant, request, response);
-      return grant;
-    });
+  return this.grantManager.obtainFromCode(ctx, code, sessionId)
+      .then(function (grant) {
+        self.storeGrant(grant, ctx);
+        return grant;
+      });
 };
 
-Keycloak.prototype.checkPermissions = function (authzRequest, request, callback) {
+Keycloak.prototype.checkPermissions = function (authzRequest, ctx, callback) {
   var self = this;
+  const {request} = ctx;
   return this.grantManager.checkPermissions(authzRequest, request, callback)
-    .then(function (grant) {
-      if (!authzRequest.response_mode) {
-        self.storeGrant(grant, request);
-      }
-      return grant;
-    });
+      .then(function (grant) {
+        if (!authzRequest.response_mode) {
+          self.storeGrant(grant, ctx);
+        }
+        return grant;
+      });
 };
 
 Keycloak.prototype.loginUrl = function (uuid, redirectUrl) {
   var url = this.config.realmUrl +
-  '/protocol/openid-connect/auth' +
-  '?client_id=' + encodeURIComponent(this.config.clientId) +
-  '&state=' + encodeURIComponent(uuid) +
-  '&redirect_uri=' + encodeURIComponent(redirectUrl) +
-  '&scope=' + encodeURIComponent(this.config.scope ? 'openid ' + this.config.scope : 'openid') +
-  '&response_type=code';
+      '/protocol/openid-connect/auth' +
+      '?client_id=' + encodeURIComponent(this.config.clientId) +
+      '&state=' + encodeURIComponent(uuid) +
+      '&redirect_uri=' + encodeURIComponent(redirectUrl) +
+      '&scope=' + encodeURIComponent(this.config.scope ? 'openid ' + this.config.scope : 'openid') +
+      '&response_type=code';
 
   if (this.config && this.config.idpHint) {
     url += '&kc_idp_hint=' + encodeURIComponent(this.config.idpHint);
@@ -401,8 +400,8 @@ Keycloak.prototype.loginUrl = function (uuid, redirectUrl) {
 
 Keycloak.prototype.logoutUrl = function (redirectUrl) {
   return this.config.realmUrl +
-  '/protocol/openid-connect/logout' +
-  '?redirect_uri=' + encodeURIComponent(redirectUrl);
+      '/protocol/openid-connect/logout' +
+      '?redirect_uri=' + encodeURIComponent(redirectUrl);
 };
 
 Keycloak.prototype.accountUrl = function () {

@@ -13,49 +13,55 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-'use strict';
+'use strict'
 
-const URL = require('url');
+const URL = require('url')
 
 module.exports = function (keycloak) {
-  return function postAuth (request, response, next) {
+  return async function postAuth (ctx, next) {
+    const { request, response } = ctx
+
     if (!request.query.auth_callback) {
-      return next();
+      await next()
+      return
     }
 
     //  During the check SSO process the Keycloak server answered the user is not logged in
     if (request.query.error === 'login_required') {
-      return next();
+      await next()
+      return
     }
 
     if (request.query.error) {
-      return keycloak.accessDenied(request, response, next);
+      return keycloak.accessDenied(ctx, next)
     }
 
-    keycloak.getGrantFromCode(request.query.code, request, response)
-      .then(grant => {
-        let urlParts = {
-          pathname: request.path,
-          query: request.query
-        };
+    try {
+      const grant = await keycloak.getGrantFromCode(request.query.code, ctx)
+      let urlParts = {
+        pathname: request.path,
+        query: request.query
+      }
 
-        delete urlParts.query.code;
-        delete urlParts.query.auth_callback;
-        delete urlParts.query.state;
-        delete urlParts.query.session_state;
 
-        let cleanUrl = URL.format(urlParts);
+      delete urlParts.query.code
+      delete urlParts.query.auth_callback
+      delete urlParts.query.state
+      delete urlParts.query.session_state
 
-        request.kauth.grant = grant;
-        try {
-          keycloak.authenticated(request);
-        } catch (err) {
-          console.log(err);
-        }
-        response.redirect(cleanUrl);
-      }).catch((err) => {
-        keycloak.accessDenied(request, response, next);
-        console.error('Could not obtain grant code: ' + err);
-      });
-  };
-};
+      let cleanUrl = URL.format(urlParts)
+
+      request.kauth.grant = grant
+
+      try {
+        keycloak.authenticated(ctx)
+      } catch (err) {
+        console.log(err)
+      }
+      response.redirect(cleanUrl)
+    } catch (err) {
+      keycloak.accessDenied(ctx, next)
+      console.error('Could not obtain grant code: ' + err)
+    }
+  }
+}

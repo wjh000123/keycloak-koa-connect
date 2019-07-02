@@ -15,7 +15,7 @@
  */
 'use strict';
 
-function handlePermissions (permissions, callback) {
+function handlePermissions(permissions, callback) {
   for (let i = 0; i < permissions.length; i++) {
     const expected = permissions[i].split(':');
     const resource = expected[0];
@@ -42,7 +42,7 @@ function handlePermissions (permissions, callback) {
  *
  * @constructor
  */
-function Enforcer (keycloak, config) {
+function Enforcer(keycloak, config) {
   this.keycloak = keycloak;
   this.config = config || {};
 
@@ -55,7 +55,7 @@ function Enforcer (keycloak, config) {
   }
 }
 
-Enforcer.prototype.enforce = function enforce (expectedPermissions) {
+Enforcer.prototype.enforce = function enforce(expectedPermissions) {
   const keycloak = this.keycloak;
   const config = this.config;
 
@@ -63,9 +63,11 @@ Enforcer.prototype.enforce = function enforce (expectedPermissions) {
     expectedPermissions = [expectedPermissions];
   }
 
-  return function (request, response, next) {
+  return async function (ctx, next) {
+    const {request, response} = ctx;
     if (!expectedPermissions || expectedPermissions.length === 0) {
-      return next();
+      await next();
+      return;
     }
 
     let authzRequest = {
@@ -78,7 +80,7 @@ Enforcer.prototype.enforce = function enforce (expectedPermissions) {
         authzRequest.permissions = [];
       }
 
-      let permission = { id: resource };
+      let permission = {id: resource};
 
       if (scope) {
         permission.scopes = [scope];
@@ -93,7 +95,8 @@ Enforcer.prototype.enforce = function enforce (expectedPermissions) {
           return false;
         }
       })) {
-        return next();
+        await next();
+        return;
       }
     }
 
@@ -107,7 +110,7 @@ Enforcer.prototype.enforce = function enforce (expectedPermissions) {
     }
 
     if (config.response_mode === 'permissions') {
-      return keycloak.checkPermissions(authzRequest, request, function (permissions) {
+      return keycloak.checkPermissions(authzRequest, ctx, async function (permissions) {
         if (handlePermissions(expectedPermissions, function (resource, scope) {
           if (!permissions || permissions.length === 0) {
             return false;
@@ -130,27 +133,29 @@ Enforcer.prototype.enforce = function enforce (expectedPermissions) {
           }
         })) {
           request.permissions = permissions;
-          return next();
+          await next();
+          return;
         }
 
-        return keycloak.accessDenied(request, response, next);
+        return keycloak.accessDenied(ctx, next);
       }).catch(function () {
-        return keycloak.accessDenied(request, response, next);
+        return keycloak.accessDenied(ctx, next);
       });
     } else if (config.response_mode === 'token') {
       authzRequest.response_mode = undefined;
-      return keycloak.checkPermissions(authzRequest, request).then(function (grant) {
+      return keycloak.checkPermissions(authzRequest, request).then(async function (grant) {
         if (handlePermissions(expectedPermissions, function (resource, scope) {
           if (!grant.access_token.hasPermission(resource, scope)) {
             return false;
           }
         })) {
-          return next();
+          await next();
+          return;
         }
 
-        return keycloak.accessDenied(request, response, next);
+        return keycloak.accessDenied(ctx, next);
       }).catch(function () {
-        return keycloak.accessDenied(request, response, next);
+        return keycloak.accessDenied(ctx, next);
       });
     }
   };

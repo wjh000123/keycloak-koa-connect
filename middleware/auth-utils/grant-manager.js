@@ -88,14 +88,15 @@ GrantManager.prototype.obtainDirectly = function obtainDirectly (username, passw
  * @param {String} sessionHost Optional session host for targetted Keycloak console post-backs.
  * @param {Function} callback Optional callback, if not using promises.
  */
-GrantManager.prototype.obtainFromCode = function obtainFromCode (request, code, sessionId, sessionHost, callback) {
+GrantManager.prototype.obtainFromCode = function obtainFromCode (ctx, code, sessionId, sessionHost, callback) {
+  const {request} = ctx;
   const params = {
     client_session_state: sessionId,
     client_session_host: sessionHost,
     code: code,
     grant_type: 'authorization_code',
     client_id: this.clientId,
-    redirect_uri: request.session ? request.session.auth_redirect_uri : {}
+    redirect_uri: ctx.session ? ctx.session.auth_redirect_uri : {}
   };
   const handler = createHandler(this);
   const options = postOptions(this);

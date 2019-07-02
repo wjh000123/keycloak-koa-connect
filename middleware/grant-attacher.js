@@ -16,11 +16,13 @@
 'use strict';
 
 module.exports = function (keycloak) {
-  return function grantAttacher (request, response, next) {
-    keycloak.getGrant(request, response)
-      .then(grant => {
-        request.kauth.grant = grant;
-      })
-      .then(next).catch(() => next());
+  return async function grantAttacher(ctx, next) {
+    const {request, response} = ctx
+    try {
+      request.kauth.grant = await keycloak.getGrant(ctx);
+      await next()
+    } catch (e) {
+      await next()
+    }
   };
 };

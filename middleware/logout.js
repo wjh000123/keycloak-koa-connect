@@ -16,14 +16,16 @@
 'use strict';
 
 module.exports = function (keycloak, logoutUrl) {
-  return function logout (request, response, next) {
+  return async function logout(ctx, next) {
+    const {request, response} = ctx
     if (request.url !== logoutUrl) {
-      return next();
+      await next();
+      return;
     }
 
     if (request.kauth.grant) {
-      keycloak.deauthenticated(request);
-      request.kauth.grant.unstore(request, response);
+      keycloak.deauthenticated(ctx);
+      request.kauth.grant.unstore(ctx);
       delete request.kauth.grant;
     }
 

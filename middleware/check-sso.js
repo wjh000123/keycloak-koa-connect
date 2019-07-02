@@ -18,7 +18,8 @@
 const UUID = require('./../uuid');
 const URL = require('url');
 
-function forceCheckSSO (keycloak, request, response) {
+function forceCheckSSO(keycloak, ctx) {
+  const {request, response} = ctx;
   const host = request.hostname;
   const headerHost = request.headers.host.split(':');
   const port = headerHost[1] || '';
@@ -27,8 +28,8 @@ function forceCheckSSO (keycloak, request, response) {
 
   const redirectUrl = protocol + '://' + host + (port === '' ? '' : ':' + port) + (request.originalUrl || request.url) + (hasQuery ? '&' : '?') + 'auth_callback=1';
 
-  if (request.session) {
-    request.session.auth_redirect_uri = redirectUrl;
+  if (ctx.session) {
+    ctx.session.auth_redirect_uri = redirectUrl;
   }
 
   const uuid = UUID();
@@ -39,15 +40,18 @@ function forceCheckSSO (keycloak, request, response) {
 }
 
 module.exports = function (keycloak) {
-  return function checkSso (request, response, next) {
+  return async function checkSso(ctx, next) {
+    const {request, response} = ctx;
     if (request.kauth && request.kauth.grant) {
-      return next();
+      await next();
+      return;
     }
 
     //  Check SSO process is completed and user is not logged in
-    if (request.session.auth_is_check_sso_complete) {
-      request.session.auth_is_check_sso_complete = false;
-      return next();
+    if (ctx.session.auth_is_check_sso_complete) {
+      ctx.session.auth_is_check_sso_complete = false;
+      await next();
+      return;
     }
 
     //  Keycloak server has just answered that user is not logged in
@@ -64,16 +68,16 @@ module.exports = function (keycloak) {
       let cleanUrl = URL.format(urlParts);
 
       //  Check SSO process is completed
-      request.session.auth_is_check_sso_complete = true;
+      ctx.session.auth_is_check_sso_complete = true;
 
       //  Redirect back to the original URL
       return response.redirect(cleanUrl);
     }
 
     if (keycloak.redirectToLogin(request)) {
-      forceCheckSSO(keycloak, request, response);
+      forceCheckSSO(keycloak, ctx);
     } else {
-      return keycloak.accessDenied(request, response, next);
+      return keycloak.accessDenied(ctx, next);
     }
   };
 };

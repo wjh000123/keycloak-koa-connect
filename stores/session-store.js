@@ -15,35 +15,26 @@
  */
 'use strict';
 
-function SessionStore (store) {
+function SessionStore(store) {
   this.store = store;
 }
 
 SessionStore.TOKEN_KEY = 'keycloak-token';
 
-SessionStore.prototype.get = (request) => request.session[SessionStore.TOKEN_KEY];
+SessionStore.prototype.get = (ctx) => ctx.session[SessionStore.TOKEN_KEY];
 
-SessionStore.prototype.clear = function (sessionId) {
-  let self = this;
-  this.store.get(sessionId, (err, session) => {
-    if (err) {
-      console.log(err);
-    }
-    if (session) {
-      delete session[SessionStore.TOKEN_KEY];
-      self.store.set(sessionId, session);
-    }
-  });
+SessionStore.prototype.clear = function (ctx) {
+  delete ctx.session[SessionStore.TOKEN_KEY]
 };
 
 let store = (grant) => {
-  return (request, response) => {
-    request.session[SessionStore.TOKEN_KEY] = grant.__raw;
+  return (ctx) => {
+    ctx.session[SessionStore.TOKEN_KEY] = grant.__raw;
   };
 };
 
-let unstore = (request, response) => {
-  delete request.session[SessionStore.TOKEN_KEY];
+let unstore = (ctx) => {
+  delete ctx.session[SessionStore.TOKEN_KEY];
 };
 
 SessionStore.prototype.wrap = (grant) => {

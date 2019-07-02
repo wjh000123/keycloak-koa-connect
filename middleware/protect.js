@@ -17,7 +17,8 @@
 
 const UUID = require('./../uuid');
 
-function forceLogin (keycloak, request, response) {
+function forceLogin(keycloak, ctx) {
+  const {request, response} = ctx;
   let host = request.hostname;
   let headerHost = request.headers.host.split(':');
   let port = headerHost[1] || '';
@@ -26,8 +27,8 @@ function forceLogin (keycloak, request, response) {
 
   let redirectUrl = protocol + '://' + host + (port === '' ? '' : ':' + port) + (request.originalUrl || request.url) + (hasQuery ? '&' : '?') + 'auth_callback=1';
 
-  if (request.session) {
-    request.session.auth_redirect_uri = redirectUrl;
+  if (ctx.session) {
+    ctx.session.auth_redirect_uri = redirectUrl;
   }
 
   let uuid = UUID();
@@ -35,7 +36,7 @@ function forceLogin (keycloak, request, response) {
   response.redirect(loginURL);
 }
 
-function simpleGuard (role, token) {
+function simpleGuard(role, token) {
   return token.hasRole(role);
 }
 
@@ -48,19 +49,21 @@ module.exports = function (keycloak, spec) {
     guard = simpleGuard.bind(undefined, spec);
   }
 
-  return function protect (request, response, next) {
+  return async function protect(ctx, next) {
+    const {request} = ctx;
     if (request.kauth && request.kauth.grant) {
-      if (!guard || guard(request.kauth.grant.access_token, request, response)) {
-        return next();
+      if (!guard || guard(request.kauth.grant.access_token, ctx)) {
+        await next();
+        return;
       }
 
-      return keycloak.accessDenied(request, response, next);
+      return keycloak.accessDenied(ctx, next);
     }
 
     if (keycloak.redirectToLogin(request)) {
-      forceLogin(keycloak, request, response);
+      forceLogin(keycloak, ctx);
     } else {
-      return keycloak.accessDenied(request, response, next);
+      return keycloak.accessDenied(ctx, next);
     }
   };
 };
