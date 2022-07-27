@@ -3,7 +3,7 @@
 
 ## Install
 ```bash
-$ npm i @anthinkingcoder/keycloak-koa-connect --save
+$ npm i keycloak-koa-connector --save
 ```
 
 
