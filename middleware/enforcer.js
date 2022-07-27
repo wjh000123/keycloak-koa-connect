@@ -110,7 +110,8 @@ Enforcer.prototype.enforce = function enforce(expectedPermissions) {
     }
 
     if (config.response_mode === 'permissions') {
-      return keycloak.checkPermissions(authzRequest, ctx, async function (permissions) {
+      try {
+        const permissions = await keycloak.checkPermissions(authzRequest, ctx)
         if (handlePermissions(expectedPermissions, function (resource, scope) {
           if (!permissions || permissions.length === 0) {
             return false;
@@ -138,9 +139,9 @@ Enforcer.prototype.enforce = function enforce(expectedPermissions) {
         }
 
         return keycloak.accessDenied(ctx, next);
-      }).catch(function () {
+      } catch {
         return keycloak.accessDenied(ctx, next);
-      });
+      }
     } else if (config.response_mode === 'token') {
       authzRequest.response_mode = undefined;
       return keycloak.checkPermissions(authzRequest, request).then(async function (grant) {
